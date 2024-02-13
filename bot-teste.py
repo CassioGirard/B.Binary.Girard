@@ -1,4 +1,5 @@
 from iqoptionapi.stable_api import IQ_Option
+from sqlite import bd_sqlite
 import time
 from configobj import ConfigObj
 import json, sys
@@ -14,6 +15,7 @@ config = ConfigObj('config.txt')
 email = config['LOGIN']['email']
 senha = config['LOGIN']['senha']
 tipo = config['AJUSTES']['tipo']
+otc  = config['AJUSTES']['OTC']
 valor_entrada = float(config['AJUSTES']['valor_entrada'])
 stop_win = float(config['AJUSTES']['stop_win'])
 stop_loss = float(config['AJUSTES']['stop_loss'])
@@ -246,7 +248,7 @@ def compra(ativo,valor_entrada, direcao, exp, tipo, i, resultado_win, resultado_
             valor_soros = 0
             nivel_soros = 0
             lucro_op_atual = 0
-    return i, entrada, resultado_win, resultado_loss, quantidade_compra, lucro_total
+    return i, entrada, resultado_win, resultado_loss, quantidade_compra, lucro_total,resultado
 
 ### Fução que busca hora da corretora ###
 def horario():
@@ -290,7 +292,9 @@ def pausar_ate_hora(hora_alvo):
 def estrategia_mhi():
     global tipo
     # Cria um DataFrame vazio para armazenar os resultados
-    resultados_df = pd.DataFrame(columns=["Data", "Par", "Resultado", "Entrada"])
+    VARbd_sqlite = bd_sqlite()
+    conn = VARbd_sqlite.conectar_banco()
+    VARbd_sqlite.criar_tabela(conn)
     valor_entrada = float(config['AJUSTES']['valor_entrada'])
     compra_realizada = False
     i = 0
@@ -315,18 +319,19 @@ def estrategia_mhi():
         
         if entrar:
             # Pausar a execução entre 18 e 19 horas
-            hora_atual = datetime.now().hour
-            if 18 <= hora_atual < 19:
-                pausar_ate_hora(19)
+            #hora_atual = datetime.now().hour
+            #if 18 <= hora_atual < 19:
+                #pausar_ate_hora(19)
             # teste inicio >>>>>>>>>>>>>>>>>>>
             print('\n>> Iniciando catalogação')
             lista_catalog , linha = catag(API)
 
             for ativo_atual in lista_catalog:
-                if 'OTC' in ativo_atual[0]:
-                    print('Encontrado OTC, iniciando soneca por 15 minutos')
-                    time.sleep(450) # Espera 15 min
-                    break
+                if otc == 'N':
+                    if 'OTC' in ativo_atual[0]:
+                        print('Encontrado OTC, iniciando soneca por 15 minutos')
+                        time.sleep(450) # Espera 15 min
+                        break
                 #ativo = lista_catalog[0][0]
                 #assertividade = lista_catalog[0][linha]
                 ativo = ativo_atual[0]
@@ -358,64 +363,81 @@ def estrategia_mhi():
                     direcao = False
 
                     timeframe = 60
-                    qnt_velas = 10 # !!! estava 3
+                    qnt_velas = 7 # !!! estava 3
+                    
 
                     if analise_medias == 'S':
                         velas = API.get_candles(ativo, timeframe, velas_medias, time.time())
+                        #velas = API.get_candles(ativo, timeframe, qnt_velas, time.time())
                         tendencia = medias(velas)
 
                     else:
                         velas = API.get_candles(ativo, timeframe, qnt_velas, time.time())
 
-                    velas[-1] = 'Verde' if velas[-1]['open'] < velas[-1]['close'] else 'Vermelha' if velas[-1]['open'] > velas[-1]['close'] else 'Doji'
-                    velas[-2] = 'Verde' if velas[-2]['open'] < velas[-2]['close'] else 'Vermelha' if velas[-2]['open'] > velas[-2]['close'] else 'Doji'
-                    velas[-3] = 'Verde' if velas[-3]['open'] < velas[-3]['close'] else 'Vermelha' if velas[-3]['open'] > velas[-3]['close'] else 'Doji'
-                    velas[-4] = 'Verde' if velas[-4]['open'] < velas[-4]['close'] else 'Vermelha' if velas[-4]['open'] > velas[-4]['close'] else 'Doji'
-                    velas[-5] = 'Verde' if velas[-5]['open'] < velas[-5]['close'] else 'Vermelha' if velas[-5]['open'] > velas[-5]['close'] else 'Doji'
-                    velas[-6] = 'Verde' if velas[-6]['open'] < velas[-6]['close'] else 'Vermelha' if velas[-6]['open'] > velas[-6]['close'] else 'Doji'
-                    velas[-7] = 'Verde' if velas[-7]['open'] < velas[-7]['close'] else 'Vermelha' if velas[-7]['open'] > velas[-7]['close'] else 'Doji'
-                    velas[-8] = 'Verde' if velas[-8]['open'] < velas[-8]['close'] else 'Vermelha' if velas[-8]['open'] > velas[-8]['close'] else 'Doji'
-                    velas[-9] = 'Verde' if velas[-9]['open'] < velas[-9]['close'] else 'Vermelha' if velas[-9]['open'] > velas[-9]['close'] else 'Doji'
-                    velas[-10] = 'Verde' if velas[-10]['open'] < velas[-10]['close'] else 'Vermelha' if velas[-10]['open'] > velas[-10]['close'] else 'Doji'
+                    #velas = ['Verde' if vela['open'] < vela['close'] else 'Vermelha' if vela['open'] > vela['close'] else 'Doji' for vela in velas]
 
-                    """cores = []
-                    for i in range(-10, 0):
-                        cor = 'Verde' if velas[i]['open'] < velas[i]['close'] else 'Vermelha' if velas[i]['open'] > velas[i]['close'] else 'Doji'
-                        cores.append(cor)"""
-                    
-                    cores = velas[-10] ,velas[-9] ,velas[-8] ,velas[-7] ,velas[-6],velas[-5] ,velas[-4] ,velas[-3] ,velas[-2] ,velas[-1] 
+                    # Estratégias
+                    estrategias = [
+                        ('mhi um minoria', velas[-3:], 'put' if velas.count('Verde') > velas.count('Vermelha') and 'Doji' not in velas else 'call', None),
+                        ('mhi um maioria', velas[-3:], 'call' if velas.count('Verde') > velas.count('Vermelha') and 'Doji' not in velas else 'put', None),
+                        ('milhao maioria', velas[-5:], 'call' if velas.count('Verde') > velas.count('Vermelha') and 'Doji' not in velas else 'put', None),
+                        ('milhao minoria', velas[-5:], 'put' if velas.count('Verde') > velas.count('Vermelha') and 'Doji' not in velas else 'call', None),
+                        ('mhi dois minoria', velas[-5:-2], 'put' if velas.count('Verde') > velas.count('Vermelha') and 'Doji' not in velas else 'call', None),
+                        ('mhi dois maioria', velas[-5:-2], 'put' if velas.count('Verde') > velas.count('Vermelha') and 'Doji' not in velas else 'put', None)
+                    ]
+    # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< !!!! ATIVAR QUANDO FOR REAL !!!! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+                    for i, (estrategia_nome, velas_analisadas, direcao_esperada, _) in enumerate(estrategias):
+                        #chance = VARbd_sqlite.calcular_porcentagem_win(ativo, estrategia_nome)
+                        chance = VARbd_sqlite.listar_estrategias_por_vitoria()
 
-                    if cores.count('Verde') > cores.count('Vermelha') and cores.count('Doji') == 0: direcao = 'put'
-                    if cores.count('Verde') < cores.count('Vermelha') and cores.count('Doji') == 0: direcao = 'call'
+                        estrategias[i] = (estrategia_nome, velas_analisadas, direcao_esperada, chance)
 
-                    if analise_medias =='S':
-                        if direcao == tendencia:
-                            pass
+                    # Organize as estratégias com base na chance em ordem crescente
+                    #estrategias_ordenadas = sorted(estrategias, key=lambda x: x[3][1])
+
+                    # Organize as estratégias com base na chance em ordem decrescente
+                    estrategias_ordenadas = sorted(estrategias, key=lambda x: x[3][1], reverse=True)
+
+
+                    # Agora estrategias_ordenadas contém as estratégias organizadas pela ordem escolhida acima
+                    for estrategia in estrategias_ordenadas:
+                        estrategia_nome, velas_analisadas, direcao_esperada, chance = estrategia
+                        porcentagem_vitoria = next((item[1] for item in chance[0] if item[0] == estrategia_nome), 0)
+                        #print(f"Estratégia: {estrategia_nome}, Direção Esperada: {direcao_esperada}, Chance: {porcentagem_vitoria:.2f}%")
+
+                        # Para popular o banco com as chances das estrategias
+                        """if porcentagem_vitoria == 0:
+                            print(f'A chance da estratégia: {estrategia_nome} é {porcentagem_vitoria:.2f}%. Procedendo com a análise...')
+                        elif porcentagem_vitoria > 80:
+                            print(f'A chance da estratégia: {estrategia_nome} é {porcentagem_vitoria:.2f}% entrada abortada!')
+                            continue"""
+                        cores = velas_analisadas
+                        #print(f'A chance da estratégia: {estrategia_nome} é {porcentagem_vitoria:.2f}%. Procedendo com a análise...')
+                        
+                        if analise_medias == 'S':
+                            if direcao_esperada != tendencia:
+                                print(f'Estratégia {estrategia_nome}: Entrada abortada - Contra Tendência. Ativo: {ativo_atual[0]} Direção esperada: {direcao_esperada} e Tendencia: {tendencia}')
+                                continue 
+
+                        if direcao_esperada == 'put' or direcao_esperada == 'call':
+                            print(f"Estratégia: {estrategia_nome}, Direção Esperada: {direcao_esperada}, Chance: {porcentagem_vitoria:.2f}%")
+                            i, entrada, resultado_win, resultado_loss, quantidade_compra, lucro_total,resultado = compra(ativo, valor_entrada, direcao_esperada, 1, tipo, i, resultado_win, resultado_loss, quantidade_compra)
+                            # guardar em um banco sqlite o ativo_atual[0], resultado e estrategia_nome
+                            if resultado > 0:
+                                resultado_extenso = 'Win'
+                            else:
+                                resultado_extenso = 'Loss'
+                            conn = VARbd_sqlite.conectar_banco()
+                            VARbd_sqlite.inserir_dados(conn,estrategia_nome,ativo_atual[0],resultado_extenso)
+
+
+                            valor_entrada = entrada
+                            if direcao_esperada == 'put' or direcao_esperada == 'call':
+                                break  # Sai do loop se a direção for 'put' ou 'call'
+
                         else:
-                            direcao = 'abortar'
-
-                    if direcao == 'put' or direcao == 'call':
-                        print('\nAtivo: ',ativo_atual)
-                        print('\nVelas: ',velas[-3] ,velas[-2] ,velas[-1] , ' - Entrada para ', direcao)
-
-
-                        i, entrada, resultado_win, resultado_loss, quantidade_compra, lucro_total = compra(ativo, valor_entrada, direcao, 1, tipo, i, resultado_win, resultado_loss,quantidade_compra)
-
-                        valor_entrada = entrada
-                        #compra_realizada = True
-
-                    else:
-                        if direcao == 'abortar':
-                            print('Velas: ',velas[-3] ,velas[-2] ,velas[-1] )
-                            print('Entrada abortada - Contra Tendência.')
-                            #compra_realizada = False
-
-                        else:
-                            print('Velas: ',velas[-3] ,velas[-2] ,velas[-1] )
-                            print('Entrada abortada - Foi encontrado um doji na análise.')
-                            #compra_realizada = False
-
-                        time.sleep(2)
+                            print(f'Estratégia {estrategia_nome}: Entrada abortada - Foi encontrado um doji na análise.')
+                            time.sleep(2)
                     time.sleep(1)
                     valorconta = float(API.get_balance())
 
@@ -436,14 +458,13 @@ def estrategia_mhi():
                     print(f'>>>>>> Perdas consecutivas: {contador_loss_consecutivas_historico}')
                     print('\n######################################################################\n')
 
+
 ### DEFININCãO INPUTS NO INICIO DO ROBÔ ###
 
 perfil = json.loads(json.dumps(API.get_profile_ansyc()))
 cifrao = str(perfil['currency_char'])
 nome = str(perfil['name'])
 valorconta = float(API.get_balance())
-
-
 
 print('\n######################################################################')
 print('\nOlá, ',nome, '\nSeja bem vindo ao Robô do Girard.')
