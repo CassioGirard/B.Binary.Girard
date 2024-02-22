@@ -24,6 +24,11 @@ def catag(API):
         if all_asset['turbo'][par]['open']:
             if par not in pares_abertos:
                 pares_abertos.append(par)
+
+    """for par in all_asset['binary']:
+        if all_asset['binary'][par]['open']:
+            if par not in pares_abertos:
+                pares_abertos.append(par)"""
             
 
     timeframe = 60
@@ -37,46 +42,48 @@ def catag(API):
         loss = 0
         gale1 = 0
         gale2 = 0
+        try:
+            for i in range(len(velas)):
+                minutos = float(datetime.fromtimestamp(velas[i]['from']).strftime('%M')[1:])
 
-        for i in range(len(velas)):
-            minutos = float(datetime.fromtimestamp(velas[i]['from']).strftime('%M')[1:])
-
-            if minutos == 5 or minutos== 0:
-                try:
-                    if i <2:
-                        pass
-                    else:
-
-                        vela1 = 'Verde' if velas[i-3]['open'] < velas[i-3]['close'] else 'Vermelha' if velas[i-3]['open'] > velas[i-3]['close'] else 'Doji'
-                        vela2 = 'Verde' if velas[i-2]['open'] < velas[i-2]['close'] else 'Vermelha' if velas[i-2]['open'] > velas[i-2]['close'] else 'Doji'
-                        vela3 = 'Verde' if velas[i-1]['open'] < velas[i-1]['close'] else 'Vermelha' if velas[i-1]['open'] > velas[i-1]['close'] else 'Doji'
-
-                        entrada1 = 'Verde' if velas[i]['open'] < velas[i]['close'] else 'Vermelha' if velas[i]['open'] > velas[i]['close'] else 'Doji'
-                        entrada2 = 'Verde' if velas[i+1]['open'] < velas[i+1]['close'] else 'Vermelha' if velas[i+1]['open'] > velas[i+1]['close'] else 'Doji'
-                        entrada3 ='Verde' if velas[i+2]['open'] < velas[i+2]['close'] else 'Vermelha' if velas[i+2]['open'] > velas[i+2]['close'] else 'Doji'
-
-                        cores = vela1,vela2,vela3
-
-                        if cores.count('Verde') > cores.count('Vermelha') and cores.count('Doji') == 0 : dir = 'Vermelha'
-                    
-                        if cores.count('Vermelha') > cores.count('Verde') and cores.count('Doji') == 0 : dir = 'Verde'
-
-                        if cores.count('Doji') >0:
-                            doji += 1
+                if minutos == 5 or minutos== 0:
+                    try:
+                        if i <2:
+                            pass
                         else:
-                            if entrada1 == dir:
-                                win +=1
-                            else:
-                                if entrada2 == dir:
-                                    gale1 +=1
-                                else:
-                                    if entrada3 == dir:
-                                        gale2 +=1
 
+                            vela1 = 'Verde' if velas[i-3]['open'] < velas[i-3]['close'] else 'Vermelha' if velas[i-3]['open'] > velas[i-3]['close'] else 'Doji'
+                            vela2 = 'Verde' if velas[i-2]['open'] < velas[i-2]['close'] else 'Vermelha' if velas[i-2]['open'] > velas[i-2]['close'] else 'Doji'
+                            vela3 = 'Verde' if velas[i-1]['open'] < velas[i-1]['close'] else 'Vermelha' if velas[i-1]['open'] > velas[i-1]['close'] else 'Doji'
+
+                            entrada1 = 'Verde' if velas[i]['open'] < velas[i]['close'] else 'Vermelha' if velas[i]['open'] > velas[i]['close'] else 'Doji'
+                            entrada2 = 'Verde' if velas[i+1]['open'] < velas[i+1]['close'] else 'Vermelha' if velas[i+1]['open'] > velas[i+1]['close'] else 'Doji'
+                            entrada3 ='Verde' if velas[i+2]['open'] < velas[i+2]['close'] else 'Vermelha' if velas[i+2]['open'] > velas[i+2]['close'] else 'Doji'
+
+                            cores = vela1,vela2,vela3
+
+                            if cores.count('Verde') > cores.count('Vermelha') and cores.count('Doji') == 0 : dir = 'Vermelha'
+                        
+                            if cores.count('Vermelha') > cores.count('Verde') and cores.count('Doji') == 0 : dir = 'Verde'
+
+                            if cores.count('Doji') >0:
+                                doji += 1
+                            else:
+                                if entrada1 == dir:
+                                    win +=1
+                                else:
+                                    if entrada2 == dir:
+                                        gale1 +=1
                                     else:
-                                        loss +=1
-                except:
-                    pass
+                                        if entrada3 == dir:
+                                            gale2 +=1
+
+                                        else:
+                                            loss +=1
+                    except:
+                        pass
+        except Exception:
+            continue
 
         total_entrada = win + gale1 + gale2 + loss
         qnt_win = win

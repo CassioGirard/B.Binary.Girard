@@ -50,10 +50,10 @@ class bd_sqlite:
             estrategias_resultados.append((estrategia_nome, porcentagem_win))
 
         # Ordenar as estratégias pelo cálculo de vitória em ordem decrescente
-        #estrategias_ordenadas = sorted(estrategias_resultados, key=lambda x: x[1], reverse=True)
+        estrategias_ordenadas = sorted(estrategias_resultados, key=lambda x: x[1], reverse=True)
 
         # Ordenar as estratégias pelo cálculo de vitória em ordem crescente
-        estrategias_ordenadas = sorted(estrategias_resultados, key=lambda x: x[1], reverse=False)
+        #estrategias_ordenadas = sorted(estrategias_resultados, key=lambda x: x[1], reverse=False)
 
         # Obter o nome da estratégia com a maior taxa de sucesso
         estrategia_mais_acertada = estrategias_ordenadas[0][0] if estrategias_ordenadas else None
