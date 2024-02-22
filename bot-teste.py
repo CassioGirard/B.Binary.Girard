@@ -465,11 +465,11 @@ def estrategia_mhi():
                         break
                 # Chamada da função para buscar e avaliar um ativo
                 ativo_noticia = ativo_atual[0]
-                pode_comprar,df_dados_compra = noticias_investing.buscar_e_avaliar_ativo(ativo_noticia)
+                pode_comprar,df_dados_compra,ativo1 = noticias_investing.buscar_e_avaliar_ativo(ativo_noticia)
                 if pode_comprar == 'nao':
-                    print(df_dados_compra)
-                    print(f'Pares disponiveis: {pares_disponiveis}')
-                    continue
+                    if ativo1 in ativo_noticia:
+                        print(f'O par {ativo_noticia} tem noticia devido a moeda {ativo1}')
+                        continue
 
                 #ativo = lista_catalog[0][0]
                 #assertividade = lista_catalog[0][linha]
@@ -550,16 +550,11 @@ def estrategia_mhi():
                         porcentagem_vitoria = next((item[1] for item in chance[0] if item[0] == estrategia_nome), 0)
 
                         if resultado_loss > 0:
-                            #print(f"Estratégia: {estrategia_nome}, Direção Esperada: {direcao_esperada}, Chance: {porcentagem_vitoria:.2f}%. Não realizado entrada!!!")
-                            #continue
-                            if estrategia_nome in estrategias_realizadas:
-                                continue
-                            else:
-                                estrategias_realizadas.append(estrategia_nome)
-
-                            if len(estrategias_realizadas) == 6:
+                            estrategias_realizadas.append(estrategia_nome)
+                            if len(estrategias_realizadas) >= 6:
                                 estrategias_realizadas = []
-                       
+                            continue
+                        
                         if analise_medias == 'S':
                             if direcao_esperada != tendencia:
                                 print(f'Estratégia {estrategia_nome}: Entrada abortada - Contra Tendência. Ativo: {ativo_atual[0]} Direção esperada: {direcao_esperada} e Tendencia: {tendencia}')

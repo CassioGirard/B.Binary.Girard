@@ -22,7 +22,7 @@ class NoticiasInvesting:
 
         # Separar as duas moedas
         ativo1 = ativo[:3]  # Os primeiros três caracteres representam a primeira moeda
-        ativo2 = ativo[3:]  # Os caracteres restantes representam a segunda moeda
+        #ativo2 = ativo[3:]  # Os caracteres restantes representam a segunda moeda
 
         # Filtrar o DataFrame para o ativo específico
         #df_ativo = self.df_noticias[self.df_noticias['moeda_ativo'] == ativo1]
@@ -31,8 +31,8 @@ class NoticiasInvesting:
 
         # Filtrar o DataFrame para os ativos específicos
         df_ativo = self.df_noticias[
-            (self.df_noticias['moeda_ativo'].str.contains(ativo1)) |
-            (self.df_noticias['moeda_ativo'].str.contains(ativo2))
+            (self.df_noticias['moeda_ativo'].str.contains(ativo1)) #|
+            #(self.df_noticias['moeda_ativo'].str.contains(ativo2))
         ]
 
 
@@ -52,7 +52,7 @@ class NoticiasInvesting:
                 dados_compra.append({'hora': row['hora'], 'moeda_ativo': row['moeda_ativo'], 'pode_comprar': pode_comprar})
         # Transformar em DataFrame
         df_dados_compra = pd.DataFrame(dados_compra)
-        return pode_comprar,df_dados_compra
+        return pode_comprar,df_dados_compra,ativo1
 
     def obter_noticias(self, url):
         # Realiza a requisição e obtém o conteúdo HTML
