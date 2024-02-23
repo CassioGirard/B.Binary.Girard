@@ -25,12 +25,14 @@ lucro_total = 0
 stop = True
 contador_loss_consecutivas = 0
 contador_loss_consecutivas_historico = 0
+contador_loss_troca_real = 0
 contador_win_consecutivas = 0
 contador_win_consecutivas_historico = 0
 # URL da página de noticias
 url = "https://br.investing.com/economic-calendar/"
 # Criar uma instância da classe NoticiasInvesting
 noticias_investing = NoticiasInvesting()
+estrategias_realizadas = []
 
 
 if config['MARTINGALE']['usar_martingale'].upper() == 'S':
@@ -92,7 +94,7 @@ API.change_balance(conta)
 
 ### Função para checar stop win e loss
 def check_stop(entrada):
-    global stop,lucro_total,conta
+    global stop,lucro_total,conta,estrategias_realizadas
 
     if lucro_total <= float('-'+str(abs(stop_loss))): # Se stop loss
 
@@ -125,7 +127,6 @@ def check_stop(entrada):
 
     if lucro_total >= float(abs(stop_win)): #STOP WIN
 
-            # Definindo o nome do arquivo Excel
             arquivo_excel = "resultado.xlsx"
             # Abrir ou criar o arquivo Excel
             try:
@@ -142,10 +143,11 @@ def check_stop(entrada):
                 ws.cell(row=1, column=4).value = "Loss TR"
             if conta == 'PRACTICE':
                 ws.cell(row=2, column=3).value = (ws.cell(row=2, column=3).value or 0) + 1
-                if contador_win_consecutivas_historico >= 3 and contador_loss_consecutivas_historico <=2:
+                if contador_win_consecutivas_historico >= 3 and contador_loss_troca_real > 1:
                     print('trocado para a REAL')
                     conta='REAL'
                     API.change_balance(conta)
+                    estrategias_realizadas = []
             else:
                 ws.cell(row=2, column=1).value = (ws.cell(row=2, column=1).value or 0) + 1
                 stop = False
@@ -219,7 +221,7 @@ def payout(par):
 
 ### Função abrir ordem e checar resultado ###
 def compra(ativo,valor_entrada, direcao, exp, tipo, i, resultado_win, resultado_loss, quantidade_compra):
-    global stop,lucro_total, nivel_soros, niveis_soros, valor_soros, lucro_op_atual,contador_loss_consecutivas,contador_loss_consecutivas_historico,contador_win_consecutivas,contador_win_consecutivas_historico
+    global stop,lucro_total, nivel_soros, niveis_soros, valor_soros, lucro_op_atual,contador_loss_consecutivas,contador_loss_consecutivas_historico,contador_win_consecutivas,contador_win_consecutivas_historico, resultado,contador_loss_troca_real
 
     if soros:
         if nivel_soros == 0:
@@ -308,12 +310,6 @@ def compra(ativo,valor_entrada, direcao, exp, tipo, i, resultado_win, resultado_
                                 entrada = round(abs(gale), 2)
 
                         conta_antiga = conta
-                        if conta == 'PRACTICE' and lucro_total <= float('-'+str(abs(stop_loss))): # Se stop loss na conta demo
-                            resultado_win = 0
-                            resultado_loss = 0
-                            lucro_total = 0
-                            contador_loss_consecutivas_historico = 0
-                            entrada = float(config['AJUSTES']['valor_entrada'])
 
                         check_stop(entrada)
 
@@ -332,7 +328,8 @@ def compra(ativo,valor_entrada, direcao, exp, tipo, i, resultado_win, resultado_
                                 resultado_loss = 0
                                 lucro_total = 0
                                 contador_loss_consecutivas_historico = 0
-                                contador_win_consecutivas_historico = 0
+                                contador_loss_troca_real = 0
+                                contador_win_consecutivas_historico = 00
                                 entrada = float(config['AJUSTES']['valor_entrada'])
 
                         if conta == 'PRACTICE':
@@ -340,6 +337,8 @@ def compra(ativo,valor_entrada, direcao, exp, tipo, i, resultado_win, resultado_
                                 resultado_win = 0
                                 resultado_loss = 0
                                 lucro_total = 0
+                                if contador_loss_consecutivas_historico <= 0:
+                                    contador_loss_troca_real +=1
                                 contador_loss_consecutivas_historico = 0
                                 contador_win_consecutivas_historico +=1
                                 entrada = float(config['AJUSTES']['valor_entrada'])
@@ -363,6 +362,7 @@ def compra(ativo,valor_entrada, direcao, exp, tipo, i, resultado_win, resultado_
             valor_soros = 0
             nivel_soros = 0
             lucro_op_atual = 0
+
     return i, entrada, resultado_win, resultado_loss, quantidade_compra, lucro_total,resultado
 
 ### Fução que busca hora da corretora ###
@@ -405,7 +405,7 @@ def pausar_ate_hora(hora_alvo):
 
 ### Função de análise MHI   
 def estrategia_mhi():
-    global tipo
+    global tipo, estrategias_realizadas
     # Cria um DataFrame vazio para armazenar os resultados
     VARbd_sqlite = bd_sqlite()
     conn = VARbd_sqlite.conectar_banco()
@@ -420,7 +420,7 @@ def estrategia_mhi():
     contador_noticias = 0
     pode_comprar = 'vazio'
     dados_compra = []
-    estrategias_realizadas = []
+
 
     while True:
         time.sleep(0.1)
@@ -526,7 +526,6 @@ def estrategia_mhi():
                     ]
     # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< !!!! ATIVAR QUANDO FOR REAL !!!! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
                     for i, (estrategia_nome, velas_analisadas, direcao_esperada, _) in enumerate(estrategias):
-                    #for i, (estrategia_nome, velas_analisadas, direcao_esperada, chance) in enumerate(estrategias): # retirar pós teste
 
                         chance = VARbd_sqlite.listar_estrategias_por_vitoria()
 
@@ -535,26 +534,16 @@ def estrategia_mhi():
                     # Organize as estratégias com base na chance em ordem decrescente ATIVAR
                     estrategias_ordenadas = sorted(estrategias, key=lambda x: x[3][1], reverse=True)
 
-                    """if 'OTC' in ativo_atual[0]:
-                        # Organize as estratégias com base na chance em ordem crescente
-                        estrategias_ordenadas = sorted(estrategias, key=lambda x: x[3][1])
-                    else:
-                        # Organize as estratégias com base na chance em ordem decrescente
-                        estrategias_ordenadas = sorted(estrategias, key=lambda x: x[3][1], reverse=True)"""
-
-
                     # Agora estrategias_ordenadas contém as estratégias organizadas pela ordem escolhida acima
                     for estrategia in estrategias_ordenadas:
                     
                         estrategia_nome, velas_analisadas, direcao_esperada, chance = estrategia
                         porcentagem_vitoria = next((item[1] for item in chance[0] if item[0] == estrategia_nome), 0)
 
-                        if resultado_loss > 0:
-                            estrategias_realizadas.append(estrategia_nome)
-                            if len(estrategias_realizadas) >= 6:
-                                estrategias_realizadas = []
-                            continue
-                        
+                        if conta == 'PRACTICE':
+                            if estrategia_nome in estrategias_realizadas:
+                                continue
+
                         if analise_medias == 'S':
                             if direcao_esperada != tendencia:
                                 print(f'Estratégia {estrategia_nome}: Entrada abortada - Contra Tendência. Ativo: {ativo_atual[0]} Direção esperada: {direcao_esperada} e Tendencia: {tendencia}')
@@ -562,14 +551,19 @@ def estrategia_mhi():
 
                         if direcao_esperada == 'put' or direcao_esperada == 'call':
 
-
                             print(f"Estratégia: {estrategia_nome}, Direção Esperada: {direcao_esperada}, Chance: {porcentagem_vitoria:.2f}%")
                             i, entrada, resultado_win, resultado_loss, quantidade_compra, lucro_total,resultado = compra(ativo, valor_entrada, direcao_esperada, 1, tipo, i, resultado_win, resultado_loss, quantidade_compra)
+                            if resultado == None:
+                                break
                             # guardar em um banco sqlite o ativo_atual[0], resultado e estrategia_nome
                             if resultado > 0:
                                 resultado_extenso = 'Win'
                             else:
                                 resultado_extenso = 'Loss'
+                                if conta == 'PRACTICE':
+                                    estrategias_realizadas.append(estrategia_nome)
+                                    if len(estrategias_realizadas) >= 6:
+                                        estrategias_realizadas = []
                             conn = VARbd_sqlite.conectar_banco()
                             VARbd_sqlite.inserir_dados(conn,estrategia_nome,ativo_atual[0],resultado_extenso)
 

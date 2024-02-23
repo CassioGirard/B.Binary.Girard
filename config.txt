@@ -7,7 +7,7 @@ valor_entrada = 10
 tipo = automatico
 stop_win = 1
 stop_loss = 75.10
-analise_medias = N
+analise_medias = S
 velas_medias = 10
 OTC = N
 

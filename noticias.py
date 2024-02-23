@@ -45,7 +45,7 @@ class NoticiasInvesting:
             diferenca_tempo = abs(datetime.datetime.combine(datetime.date.today(), hora_atual) - datetime.datetime.combine(datetime.date.today(), hora_df))
 
             # Verificar se a diferença de tempo é maior ou igual a xx minutos
-            if diferenca_tempo <= datetime.timedelta(minutes=60):
+            if diferenca_tempo <= datetime.timedelta(minutes=30):
                 pode_comprar = 'nao'
 
                 # Adicionar hora e moeda_ativo aos dados_compra apenas quando pode_comprar é 'nao'
